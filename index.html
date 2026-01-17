@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Révision Biblique – Mémorisation personnelle</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 720px;
+      margin: 40px auto;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      margin-bottom: 20px;
+    }
+    textarea, input {
+      width: 100%;
+      margin-top: 8px;
+      padding: 8px;
+      font-size: 15px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+      font-size: 15px;
+    }
+    button:hover { background: #0056d2; }
+    .small { font-size: 14px; padding: 7px 12px; margin-right: 5px; }
+    .danger { background: #c62828; }
+    .danger:hover { background: #a01f1f; }
+  </style>
+</head>
+
+<body>
+
+  <!-- AJOUT DE VERSET -->
+  <div class="card">
+    <h2>➕ Ajouter un verset</h2>
+    <input id="refInput" placeholder="Référence (ex : Psaume 119:105)">
+    <textarea id="textInput" placeholder="Texte du verset"></textarea>
+    <button onclick="addVerse()">Ajouter le verset</button>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="card">
+    <h2 id="question">Ajoute un verset pour commencer</h2>
+    <div id="answers"></div>
+    <button id="nextBtn" style="display:none;" onclick="loadCard()">Suivant</button>
+  </div>
+
+  <!-- GESTION -->
+  <div class="card">
+    <h3>⚙️ Gestion</h3>
+    <button class="danger" onclick="resetAll()">Tout réinitialiser</button>
+  </div>
+
+<script>
+/* =====================
+   DONNÉES
+===================== */
+
+let cards = [];
+let currentCard = null;
+let lastCard = null;
+
+/* =====================
+   STOCKAGE LOCAL
+===================== */
+
+function saveCards() {
+  localStorage.setItem("personalBibleCards", JSON.stringify(cards));
+}
+
+function loadCards() {
+  const saved = localStorage.getItem("personalBibleCards");
+  if (saved) cards = JSON.parse(saved);
+}
+
+/* =====================
+   AJOUT DE VERSET
+===================== */
+
+function addVerse() {
+  const ref = document.getElementById("refInput").value.trim();
+  const text = document.getElementById("textInput").value.trim();
+
+  if (!ref || !text) {
+    alert("Référence et texte obligatoires.");
+    return;
+  }
+
+  cards.push({
+    reference: ref,
+    text: text,
+    strength: 1
+  });
+
+  saveCards();
+  document.getElementById("refInput").value = "";
+  document.getElementById("textInput").value = "";
+  loadCard();
+}
+
+/* =====================
+   RÉPÉTITION ESPACÉE
+===================== */
+
+function getNextCard() {
+  if (cards.length === 0) return null;
+
+  const weights = cards.map(c => 1 / c.strength);
+  const total = weights.reduce((a, b) => a + b, 0);
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    let r = Math.random() * total;
+    for (let i = 0; i < cards.length; i++) {
+      r -= weights[i];
+      if (r <= 0) {
+        if (cards[i] !== lastCard || cards.length === 1) {
+          lastCard = cards[i];
+          return cards[i];
+        }
+      }
+    }
+  }
+
+  return cards[0];
+}
+
+/* =====================
+   QUIZ
+===================== */
+
+function loadCard() {
+  currentCard = getNextCard();
+  if (!currentCard) return;
+
+  document.getElementById("question").textContent = currentCard.reference;
+  document.getElementById("answers").innerHTML = `
+    <button onclick="showAnswer()">Afficher le verset</button>
+  `;
+  document.getElementById("nextBtn").style.display = "none";
+}
+
+function showAnswer() {
+  document.getElementById("answers").innerHTML = `
+    <p><strong>${currentCard.text}</strong></p>
+    <button class="small" onclick="grade(true)">Je savais 👍</button>
+    <button class="small" onclick="grade(false)">J’ai oublié 👎</button>
+  `;
+  document.getElementById("nextBtn").style.display = "block";
+}
+
+function grade(success) {
+  if (success) currentCard.strength = Math.min(currentCard.strength + 0.5, 10);
+  else currentCard.strength = Math.max(currentCard.strength - 1.5, 1);
+  saveCards();
+  loadCard();
+}
+
+/* =====================
+   RESET
+===================== */
+
+function resetAll() {
+  if (confirm("Tout supprimer ? Versets et progression.")) {
+    localStorage.removeItem("personalBibleCards");
+    cards = [];
+    document.getElementById("question").textContent = "Ajoute un verset pour commencer";
+    document.getElementById("answers").innerHTML = "";
+    document.getElementById("nextBtn").style.display = "none";
+  }
+}
+
+/* =====================
+   INIT
+===================== */
+
+loadCards();
+loadCard();
+</script>
+
+</body>
+</html>
